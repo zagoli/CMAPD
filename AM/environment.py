@@ -1,10 +1,11 @@
 import torch
 import random
 from parameters import params
-from function import characteristic_function as func
+from function import characteristic_function, parallel_pbs, predict_costs
 
 GRID = params['environment']['map']
 MAX_COLLECTIVE_SIZE = params['environment']['max_collective_size']
+
 
 '''
 CAPACITY = params['environment']['capacity']
@@ -36,6 +37,7 @@ def best_insertion(waypoints, task):
 
     return best_insertion
 '''
+
 
 class Collective:
     def __init__(self, agents, tasks, assignments=None, paths=None, waypoints=None):
@@ -87,7 +89,7 @@ class Collective:
 
         insert_idx = (self.indices[range(self._batch_size), a_idx] != -1).sum(dim=-1)
         insert_idx = torch.where((insert_idx < MAX_COLLECTIVE_SIZE - 1) & (~self.is_terminal),
-            insert_idx, torch.empty_like(insert_idx).fill_(-1))
+                                 insert_idx, torch.empty_like(insert_idx).fill_(-1))
 
         collective = Collective(self.agents, self.tasks)
 
@@ -107,7 +109,7 @@ class Collective:
             self.is_terminal.unsqueeze(-1),
             collective.waypoints[range(self._batch_size), a_idx, -1],
             self.tasks[range(self._batch_size), t_idx, 2:])
-        
+
         ''' Code for best_insertion
         collective.waypoints[range(self._batch_size), a_idx] = torch.stack([
             best_insertion(self.waypoints[i, a_idx[i]], self.tasks[i, t_idx[i]])
@@ -117,24 +119,48 @@ class Collective:
         collective.paths = self.paths.clone()
         collective.paths[range(self._batch_size), a_idx] = self._get_paths(collective.waypoints, a_idx)
 
-        collective.is_terminal = (collective.indices != -1).sum(dim=-1).sum(dim=-1) == (self.tasks != -1).all(dim=-1).sum(dim=-1)
+        collective.is_terminal = (collective.indices != -1).sum(dim=-1).sum(dim=-1) == (self.tasks != -1).all(
+            dim=-1).sum(dim=-1)
 
         return collective
 
-    def get_reward(self):
-        reward = torch.zeros(self._batch_size, dtype=torch.float, device=self._device)
+    # Adrià previous sequential version
+    # def get_reward(self):
+    #     reward = torch.zeros(self._batch_size, dtype=torch.float, device=self._device)
+    #     for b, terminal in enumerate(self.is_terminal):
+    #         if terminal:
+    #             reward[b] = characteristic_function(self.waypoints[b].cpu())
+    #             ''' Code for best_insertion
+    #             reward[b] = func(self.waypoints[b, ..., :-1].cpu())
+    #             '''
+    #     return reward
 
-        for b, terminal in enumerate(self.is_terminal):
-            if terminal:
-                reward[b] = func(self.waypoints[b].cpu())
-                ''' Code for best_insertion
-                reward[b] = func(self.waypoints[b, ..., :-1].cpu())
-                '''
+    def get_reward(self):
+        terminal_indexes = [index for index, terminal in enumerate(self.is_terminal) if terminal]
+        waypoints = [self.waypoints[index] for index in terminal_indexes]
+        waypoints = waypoints_tensors_to_lists(waypoints)
+        costs = parallel_pbs(waypoints)
+        reward = torch.zeros(self._batch_size, dtype=torch.float, device=self._device)
+        for i, cost in enumerate(costs):
+            index = terminal_indexes[i]
+            reward[index] = cost
         return reward
+
+
+def waypoints_tensors_to_lists(waypoints):
+    # from list of tensor to list of lists of points (list of int, int)
+    result = []
+    for w in waypoints:
+        w = [[point for point in points if point[0] != -1] for points in w]
+        w = [[[int_value.item() for int_value in tensor] for tensor in sublist] for sublist in w]  # ChatGPT
+        result.append(w)
+    return result
+
 
 with open(GRID, 'r') as f:
     f.readline()
     grid = [l.strip() for l in f.readlines()]
+
 
 def sample_agents_tasks(n_agents, n_tasks):
     typecell = {'.': [], 'e': [], '@': []}
@@ -143,4 +169,4 @@ def sample_agents_tasks(n_agents, n_tasks):
             typecell[cell].append((i, j))
     random.shuffle(typecell['e'])
     return ([typecell['e'].pop() for _ in range(n_agents)],
-        [[typecell['e'].pop(), typecell['e'].pop()] for _ in range(n_tasks)])
+            [[typecell['e'].pop(), typecell['e'].pop()] for _ in range(n_tasks)])

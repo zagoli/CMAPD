@@ -1,21 +1,54 @@
 import numpy as np
 from oracle.oracle import oracle
+from multiprocessing import Pool, cpu_count
+from regression.features_extractor import FeaturesExtractor
+from regression.utils import read_grid, format_grid_for_oracle
+from regression.grid_solver import GridSolver
+from xgboost import XGBRegressor
+from regression.utils import ravel
 
-with open('env/grid.map') as f:
-    size = tuple(map(int, f.readline().strip().split(',')))
-grid, grid_size = np.genfromtxt('env/grid.map', delimiter=1, skip_header=1, dtype='S').ravel() == b'@', size
+# ---GLOBAL VARIABLES---
+grid, grid_size = read_grid('env/grid.map')
+grid_solver = GridSolver(grid)
+grid = format_grid_for_oracle(grid)
+model = XGBRegressor()
+model.load_model('model.ubj')
+# ----------------------
+
 
 def characteristic_function(waypoints):
-    '''
+    """
     Input:
         - waypoints: Pytorch tensor of (x, y) coordinates of points [number_of_agents, 2 * max_collective_size + 1, 2]
-    
+
     Output:
         - value: Characteristic function value provided by the oracle (float)
-    '''
-
+    """
     num_agents = len(waypoints)
-    waypoints = [[p for p in a if p[0] != -1] for a in waypoints]   # Pytorch tensor to list of variable size lists of waypoints
-    sep = np.array(list(map(len, waypoints)), dtype=np.int32)       # Numpy array with the number of waypoints for each agent (required to parse waypoints inside oracle)
-    waypoints = np.array([p[0] * grid_size[1] + p[1] for a in waypoints for p in a], dtype=np.int32) # Format waypoints to 1d numpy array (x * d_x + y)
-    return oracle(grid, waypoints, sep, num_agents, len(waypoints), grid_size[0], grid_size[1]) # Call the oracle
+    # Numpy array with the number of waypoints for each agent (required to parse waypoints inside oracle)
+    sep = np.array(list(map(len, waypoints)), dtype=np.int32)
+    # Format waypoints to 1d numpy array (x * d_x + y)
+    waypoints = np.array([ravel(p, grid_size[1]) for a in waypoints for p in a], dtype=np.int32)
+    # Call the oracle
+    return oracle(grid, waypoints, sep, num_agents, len(waypoints), grid_size[0], grid_size[1])
+
+
+def parallel_pbs(waypoints: list[list[list[list[int]]]]):
+    """
+    waypoints: a list of waypoint, that is, a list of list of point, that is, a list of int of length 2
+    """
+    with Pool(cpu_count()) as pool:
+        iterator_results = pool.map(characteristic_function, waypoints)
+    return list(iterator_results)
+
+
+def predict_costs(waypoints: list[list[list[list[int]]]]):
+    with Pool(cpu_count()) as pool:
+        iterator_results = pool.map(__extract_features, waypoints)
+    features_array = np.array(list(iterator_results))
+    return model.predict(features_array).tolist()
+
+
+def __extract_features(w):
+    extractor = FeaturesExtractor(w, grid, grid_size, grid_solver)
+    return extractor.get_features()

@@ -1,0 +1,5 @@
+# oracle compiled files
+oracle/build
+oracle/oracle.cpython*.so
+# PyCharm
+.idea
