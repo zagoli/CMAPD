@@ -7,38 +7,6 @@ GRID = params['environment']['map']
 MAX_COLLECTIVE_SIZE = params['environment']['max_collective_size']
 
 
-'''
-CAPACITY = params['environment']['capacity']
-
-distance_matrix = np.load('./env/distance_matrix.npy')
-
-def best_insertion(waypoints, task):
-    waypoints = waypoints[:-2]
-    num_waypoints = (waypoints != -1).all(dim=-1).sum(dim=-1)
-    pickup = F.pad(task[:2].unsqueeze(0), (0, 1, 0, 0), value=1)
-    delivery = F.pad(task[2:].unsqueeze(0), (0, 1, 0, 0), value=-1)
-
-    best = float("inf")
-    for q1 in range(1, 1 + num_waypoints):
-        for q2 in range(q1, 1 + num_waypoints):
-            insertion = torch.cat([waypoints[:q1], pickup, waypoints[q1:q2], delivery, waypoints[q2:]])
-            if (insertion[..., 2].cumsum(dim=-1) > CAPACITY).any():
-                continue
-
-            dist = 0
-            for fp, tp in zip(insertion[:-1], insertion[1:]):
-                if (tp == -1).all(dim=-1):
-                    break
-                dist += distance_matrix[fp[0]][fp[1]][tp[0]][tp[1]]
-
-            if dist < best:
-                best = dist
-                best_insertion = insertion
-
-    return best_insertion
-'''
-
-
 class Collective:
     def __init__(self, agents, tasks, assignments=None, paths=None, waypoints=None):
         self._batch_size, self._num_agents, _ = agents.size()
@@ -58,14 +26,6 @@ class Collective:
             agents.unsqueeze(2),
             -torch.ones_like(agents).unsqueeze(2).repeat(1, 1, 2 * MAX_COLLECTIVE_SIZE, 1)
         ], dim=2) if waypoints is None else waypoints
-
-        ''' code for best_insertion
-        self.waypoints = torch.cat([
-            F.pad(agents.unsqueeze(2), (0, 1, 0, 0), value=0),
-            F.pad(-torch.ones_like(agents).unsqueeze(2).repeat(1, 1, 2 * MAX_COLLECTIVE_SIZE, 1), (0, 1, 0, 0), value=-1)
-        ], dim=2) if waypoints is None else waypoints
-        '''
-
         self.is_terminal = torch.zeros(self._batch_size, dtype=torch.bool, device=self._device)
 
     def _get_paths(self, waypoints, a_idx):
@@ -74,14 +34,6 @@ class Collective:
 
         start = self.waypoints[range(self._batch_size), a_idx, 0]
         end = self.waypoints[range(self._batch_size), a_idx, last_idx]
-
-        ''' code for best_insertion
-        last_idx = (waypoints[range(self._batch_size), a_idx] != -1).all(dim=-1).sum(dim=-1)
-
-        start = self.waypoints[range(self._batch_size), a_idx, 0, :-1]
-        end = self.waypoints[range(self._batch_size), a_idx, last_idx, :-1]
-        '''
-
         return torch.cat([start, end], dim=-1)
 
     def add_participant(self, action):
@@ -110,12 +62,6 @@ class Collective:
             collective.waypoints[range(self._batch_size), a_idx, -1],
             self.tasks[range(self._batch_size), t_idx, 2:])
 
-        ''' Code for best_insertion
-        collective.waypoints[range(self._batch_size), a_idx] = torch.stack([
-            best_insertion(self.waypoints[i, a_idx[i]], self.tasks[i, t_idx[i]])
-        for i in range(self._batch_size)])
-        '''
-
         collective.paths = self.paths.clone()
         collective.paths[range(self._batch_size), a_idx] = self._get_paths(collective.waypoints, a_idx)
 
@@ -123,17 +69,6 @@ class Collective:
             dim=-1).sum(dim=-1)
 
         return collective
-
-    # Adrià previous sequential version
-    # def get_reward(self):
-    #     reward = torch.zeros(self._batch_size, dtype=torch.float, device=self._device)
-    #     for b, terminal in enumerate(self.is_terminal):
-    #         if terminal:
-    #             reward[b] = characteristic_function(self.waypoints[b].cpu())
-    #             ''' Code for best_insertion
-    #             reward[b] = func(self.waypoints[b, ..., :-1].cpu())
-    #             '''
-    #     return reward
 
     def get_reward(self):
         terminal_indexes = [index for index, terminal in enumerate(self.is_terminal) if terminal]
