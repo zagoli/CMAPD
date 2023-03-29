@@ -9,10 +9,10 @@ from regression.utils import ravel
 
 # ---GLOBAL VARIABLES---
 grid, grid_size = read_grid('env/grid.map')
-grid_solver = GridSolver(grid)
+#grid_solver = GridSolver(grid)
 grid = format_grid_for_oracle(grid)
-model = XGBRegressor()
-model.load_model('model.ubj')
+#model = XGBRegressor()
+#model.load_model('model.ubj')
 # ----------------------
 
 
@@ -42,13 +42,13 @@ def parallel_pbs(waypoints: list[list[list[list[int]]]]):
     return list(iterator_results)
 
 
-def predict_costs(waypoints: list[list[list[list[int]]]]):
-    with Pool(cpu_count()) as pool:
-        iterator_results = pool.map(__extract_features, waypoints)
-    features_array = np.array(list(iterator_results))
-    return model.predict(features_array).tolist()
-
-
-def __extract_features(w):
-    extractor = FeaturesExtractor(w, grid, grid_size, grid_solver)
-    return extractor.get_features()
+# def predict_costs(waypoints: list[list[list[list[int]]]]):
+#     with Pool(cpu_count()) as pool:
+#         iterator_results = pool.map(__extract_features, waypoints)
+#     features_array = np.array(list(iterator_results))
+#     return model.predict(features_array).tolist()
+#
+#
+# def __extract_features(w):
+#     extractor = FeaturesExtractor(w, grid, grid_size, grid_solver)
+#     return extractor.get_features()

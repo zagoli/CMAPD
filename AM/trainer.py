@@ -64,7 +64,7 @@ class Trainer:
         return reward
 
     def _evaluation(self, dataset, model, baseline):
-        model.eval()
+        model.eval()    # sets module in eval mode
         baseline.eval()
 
         model_reward = []
@@ -78,7 +78,7 @@ class Trainer:
         return sum(model_reward) / len(model_reward)
 
     def _optimize(self, dataset, model):
-        model.train()
+        model.train()   # sets module in training mode
 
         self._generate_assignment_data(dataset, self.baseline)
         for data in DataLoader(dataset, batch_size=self.batch_size, num_workers=4, shuffle=True):            
