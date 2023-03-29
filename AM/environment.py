@@ -1,7 +1,7 @@
 import torch
 import random
 from parameters import params
-from function import characteristic_function, parallel_pbs, predict_costs
+from function import parallel_pbs
 
 GRID = params['environment']['map']
 MAX_COLLECTIVE_SIZE = params['environment']['max_collective_size']

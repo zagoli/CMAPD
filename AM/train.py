@@ -11,8 +11,6 @@ random.seed(SEED)
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
-#torch.multiprocessing.set_start_method('spawn', force=True)
-#torch.multiprocessing.set_sharing_strategy('file_system')
 
 # Initialize CUDA if it is available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
