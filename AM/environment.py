@@ -31,6 +31,7 @@ class Collective:
     def _get_paths(self, waypoints, a_idx):
         last_idx = (waypoints[range(self._batch_size), a_idx] != -1).all(dim=-1).sum(dim=-1)
         last_idx = torch.where(last_idx == waypoints.size(2), last_idx - 2, last_idx)
+        # input di torch.where(condition, input, other)
 
         start = self.waypoints[range(self._batch_size), a_idx, 0]
         end = self.waypoints[range(self._batch_size), a_idx, last_idx]
