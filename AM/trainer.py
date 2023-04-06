@@ -1,12 +1,20 @@
 import datetime
 import random
 from timeit import default_timer as timer
-
 import torch
 from torch.utils.data import DataLoader
 
 from dataset import TADataset
 from environment import Collective
+
+
+def _sample_action(probs, deterministic=False):
+    tasks_size = probs.size(2)
+    p = probs.flatten(-2)
+    ij = p.argmax(-1) if deterministic else torch.multinomial((p == 0).all(dim=-1, keepdim=True) + p, 1).squeeze()
+    action = (ij // tasks_size, ij % tasks_size)
+    logprob = torch.log(p[range(probs.size(0)), ij])
+    return action, logprob
 
 
 class Trainer:
@@ -17,14 +25,6 @@ class Trainer:
         self.model = model.to(device)
         self.baseline = baseline.to(device)
         self.optim = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
-
-    def _sample_action(self, probs, deterministic=False):
-        tasks_size = probs.size(2)
-        p = probs.flatten(-2)
-        ij = p.argmax(-1) if deterministic else torch.multinomial((p == 0).all(dim=-1, keepdim=True) + p, 1).squeeze()
-        action = (ij // tasks_size, ij % tasks_size)
-        logprob = torch.log(p[range(probs.size(0)), ij])
-        return action, logprob
 
     @torch.no_grad()
     def _generate_assignment_data(self, dataset, policy):
@@ -42,7 +42,7 @@ class Trainer:
                 paths.append(collective.paths.cpu())
                 waypoints.append(collective.waypoints.cpu())
                 probs = policy(tasks, collective)
-                action, _ = self._sample_action(probs)
+                action, _ = _sample_action(probs)
                 collective = collective.add_participant(action)
 
             indices, paths, waypoints = tuple(map(torch.stack, (indices, paths, waypoints)))
@@ -63,9 +63,9 @@ class Trainer:
         while not collective.is_terminal.all():
             probs = policy(tasks, collective)
             if stochastic:
-                action, _ = self._sample_action(probs)
+                action, _ = _sample_action(probs)
             else:
-                action, _ = self._sample_action(probs, deterministic=True)
+                action, _ = _sample_action(probs, deterministic=True)
             collective = collective.add_participant(action)
         reward = collective.get_reward()
         return reward
@@ -100,13 +100,13 @@ class Trainer:
             collective = Collective(agents, tasks, assignments, paths, waypoints)
 
             probs = model(tasks, collective)
-            action, logprob = self._sample_action(probs, deterministic=True)
+            action, logprob = _sample_action(probs, deterministic=True)
             next_collective = collective.add_participant(action)
             model_reward = self._rollout(tasks, next_collective, model, stochastic=True)
 
             with torch.no_grad():
                 probs = self.baseline(tasks, collective)
-                action, _ = self._sample_action(probs, deterministic=True)
+                action, _ = _sample_action(probs, deterministic=True)
                 next_collective = collective.add_participant(action)
                 baseline_reward = self._rollout(tasks, next_collective, self.baseline, stochastic=True)
 

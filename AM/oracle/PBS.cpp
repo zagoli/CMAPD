@@ -561,7 +561,7 @@ bool PBS::terminate(PBSNode* curr)
 	{// found a solution
 		solution_found = true;
 		goal_node = curr;
-		solution_cost = goal_node->makespan;
+		solution_cost = goal_node->cost;
 		if (screen > 0) // 1 or 2
 			printResults();
 		return true;
