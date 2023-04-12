@@ -1,6 +1,6 @@
 params = {
     'setup': {
-        'seed': 10                      # Random seed for random and torch packages
+        'seed': 42                      # Random seed for random and torch packages
     },
     'environment': {
         'map': './env/grid.map',        # Filepath of the map file
@@ -17,10 +17,10 @@ params = {
     'training': {
         'n_agents': 10,                 # Number of agents in the training instances
         'n_tasks': [20, 25],            # Range of tasks in the training instances
-        'batch_size': 256,              # Batch size to train the model
-        'train_size': 2048,             # Number of training instances (ideal would be > 100k)
-        'eval_size': 256,               # Number of test instances (ideal would be > 10k)
+        'batch_size': 4096,              # Batch size to train the model
+        'train_size': 81920,             # Number of training instances (ideal would be > 100k)
+        'eval_size': 20480,               # Number of test instances (ideal would be > 10k)
         'learning_rate': 0.0001,        # Learning rate in gradient descent
-        'n_epochs': 1                   # Number of training epochs
+        'n_epochs': 100                 # Number of training epochs
     }
 }

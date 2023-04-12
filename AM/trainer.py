@@ -1,11 +1,15 @@
-import datetime
+import logging
 import random
 from timeit import default_timer as timer
+
+from datetime import datetime
+from datetime import timedelta
 import torch
 from torch.utils.data import DataLoader
 
 from dataset import TADataset
 from environment import Collective
+from pathlib import Path
 
 
 def _sample_action(probs, deterministic=False):
@@ -15,6 +19,30 @@ def _sample_action(probs, deterministic=False):
     action = (ij // tasks_size, ij % tasks_size)
     logprob = torch.log(p[range(probs.size(0)), ij])
     return action, logprob
+
+
+def check_output_dir():
+    dir = Path('models')
+    if not (dir.exists()):
+        dir.mkdir()
+
+
+def logger_setup():
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    log_filename = datetime.now().strftime("%d-%m-%Y_%H:%M:%S") + '.log'
+    file_handler = logging.FileHandler(log_filename)
+    file_handler.setLevel(logging.INFO)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+
+    logger.info("Training started at " + str(datetime.now()))
+    return logger
 
 
 class Trainer:
@@ -122,6 +150,8 @@ class Trainer:
     def train(self, n_agents, n_tasks, train_size, eval_size, n_epochs):
         best = float("inf")
         durations = []
+        check_output_dir()
+        logger = logger_setup()
         for epoch in range(n_epochs):
             start = timer()
             dataset_train = TADataset(train_size, n_agents, n_tasks)
@@ -131,11 +161,12 @@ class Trainer:
                 dataset_eval, self.model, self.baseline)
             if model_reward < best:
                 best = model_reward
-                torch.save(self.model.state_dict(), './transformer.pth')
+                torch.save(self.model.state_dict(), Path('models/transformer.pth'))
             stop = timer()
             duration = stop - start
             durations.append(duration)
             eta = (sum(durations) / len(durations)) * (n_epochs - (epoch + 1))
-            print(
-                f'epoch {epoch:5}, time={datetime.timedelta(seconds=duration)}, eta={datetime.timedelta(seconds=eta)}, reward={model_reward:5}'
+            logger.info(
+                f'epoch {epoch:5}, time={timedelta(seconds=duration)}, eta={timedelta(seconds=eta)}, reward={model_reward:5}'
             )
+        logger.info("End of training. Best reward: " + str(best))
