@@ -9,7 +9,7 @@ from regression.utils import ravel
 
 # ---GLOBAL VARIABLES---
 grid, grid_size = read_grid('env/grid.map')
-#grid_solver = GridSolver(grid)
+grid_solver = GridSolver(grid)
 grid = format_grid_for_oracle(grid)
 #model = XGBRegressor()
 #model.load_model('model.ubj')
@@ -41,6 +41,18 @@ def parallel_pbs(waypoints: list[list[list[list[int]]]]):
         iterator_results = pool.map(characteristic_function, waypoints)
     return list(iterator_results)
 
+
+def parallel_distance(waypoints: list[list[list[list[int]]]]):
+    with Pool(cpu_count()) as pool:
+        iterator_results = pool.map(distance, waypoints)
+    return list(iterator_results)
+
+
+def distance(waypoint: list[list[list[int]]]):
+    cost = 0
+    for elem in waypoint:
+        cost += grid_solver.get_waypoints_path(elem)
+    return cost
 
 # def predict_costs(waypoints: list[list[list[list[int]]]]):
 #     with Pool(cpu_count()) as pool:

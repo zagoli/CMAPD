@@ -1,7 +1,7 @@
 import torch
 import random
 from parameters import params
-from function import parallel_pbs
+from function import parallel_distance
 
 GRID = params['environment']['map']
 MAX_COLLECTIVE_SIZE = params['environment']['max_collective_size']
@@ -75,7 +75,7 @@ class Collective:
         terminal_indexes = [index for index, terminal in enumerate(self.is_terminal) if terminal]
         waypoints = [self.waypoints[index] for index in terminal_indexes]
         waypoints = waypoints_tensors_to_lists(waypoints)
-        costs = parallel_pbs(waypoints)
+        costs = parallel_distance(waypoints)
         reward = torch.zeros(self._batch_size, dtype=torch.float, device=self._device)
         for i, cost in enumerate(costs):
             index = terminal_indexes[i]

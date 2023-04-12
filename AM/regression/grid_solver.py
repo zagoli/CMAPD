@@ -4,11 +4,10 @@ import copy
 
 
 class BfsNode:
-    def __init__(self, row, col, cost, path):
+    def __init__(self, row, col, cost):
         self.row = row
         self.col = col
         self.cost = cost
-        self.path = path
 
 
 class GridSolver:
@@ -34,7 +33,7 @@ class GridSolver:
                     self.__bfs(row, col)
 
     def __bfs(self, row, col):
-        root = BfsNode(row, col, 0, [[row, col]])
+        root = BfsNode(row, col, 0)
         frontier = deque([root])
         explored = set()
         while frontier:
@@ -53,9 +52,7 @@ class GridSolver:
             new_row = vertex.row + r_move
             new_col = vertex.col + c_move
             if self.__is_in_grid(new_row, new_col) and self.__grid[new_row, new_col]:
-                new_path = copy.copy(vertex.path)
-                new_path.append([new_row, new_col])
-                neighbour = BfsNode(new_row, new_col, vertex.cost + 1, new_path)
+                neighbour = BfsNode(new_row, new_col, vertex.cost + 1)
                 neighbours.append(neighbour)
         return neighbours
 
@@ -68,27 +65,27 @@ class GridSolver:
         to_point = (vertex.row, vertex.col)
         if from_point != to_point and not self.__is_present_bidirectional(from_point, to_point):
             self.__init_dict(from_point)
-            self.__path_table[from_point][to_point] = vertex.path
+            self.__path_table[from_point][to_point] = vertex.cost
 
     def __init_dict(self, point):
         if point not in self.__path_table:
             self.__path_table[point] = dict()
 
-    def get_path(self, from_point: list, to_point: list):
+    def get_path(self, from_point: list, to_point: list) -> int:
         if from_point == to_point:
-            return from_point
+            return 0
         from_point_index = (from_point[0], from_point[1])
         to_point_index = (to_point[0], to_point[1])
         if self.__is_present(from_point_index, to_point_index):
             return self.__path_table[from_point_index][to_point_index]
         if self.__is_present(to_point_index, from_point_index):
-            return self.__path_table[to_point_index][from_point_index][::-1]
+            return self.__path_table[to_point_index][from_point_index]
         raise Exception(f'No path is present from {from_point} to {to_point}')
 
     def get_waypoints_path(self, waypoints: list):
         if len(waypoints) == 1:
-            return waypoints
-        path = []
+            return 0
+        path = 0
         for i in range(len(waypoints) - 1):
             path += self.get_path(waypoints[i], waypoints[i + 1])
         return path
