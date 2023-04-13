@@ -24,7 +24,6 @@ model = Transformer(
     nhead=params['model']['nhead'],
     dim_feedforward=params['model']['dim_feedforward'],
     num_layers=params['model']['num_layers'])
-
 baseline = Transformer(
     input_size=params['model']['input_size'],
     d_model=params['model']['d_model'],
@@ -46,4 +45,7 @@ trainer.train(
     n_tasks=params['training']['n_tasks'],
     train_size=params['training']['train_size'],
     eval_size=params['training']['eval_size'],
-    n_epochs=params['training']['n_epochs'])
+    n_epochs=params['training']['n_epochs'],
+    output_name='TEST',
+    log_prefix='TEST TRAINING'
+)

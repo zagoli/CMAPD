@@ -27,11 +27,11 @@ def check_output_dir():
         dir.mkdir()
 
 
-def logger_setup():
+def logger_setup(log_prefix):
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
-    log_filename = datetime.now().strftime("%d-%m-%Y_%H:%M:%S") + '.log'
+    log_filename = f'{log_prefix}_{datetime.now().strftime("%d-%m-%Y_%H:%M:%S")}.log'
     file_handler = logging.FileHandler(log_filename)
     file_handler.setLevel(logging.INFO)
 
@@ -41,7 +41,7 @@ def logger_setup():
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
 
-    logger.info("Training started at " + str(datetime.now()))
+    logger.info(f"Training {log_prefix} started at {datetime.now()}")
     return logger
 
 
@@ -147,21 +147,21 @@ class Trainer:
             for bp, mp in zip(self.baseline.parameters(), self.model.parameters()):
                 bp.data.copy_(0.01 * mp.data + (1 - 0.01) * bp.data)
 
-    def train(self, n_agents, n_tasks, train_size, eval_size, n_epochs):
+    def train(self, n_agents, n_tasks, train_size, eval_size, n_epochs, output_name, log_prefix = ''):
         best = float("inf")
         durations = []
         check_output_dir()
-        logger = logger_setup()
+        logger = logger_setup(log_prefix)
+        dataset_eval = TADataset(eval_size, n_agents, n_tasks)
         for epoch in range(n_epochs):
             start = timer()
             dataset_train = TADataset(train_size, n_agents, n_tasks)
-            dataset_eval = TADataset(eval_size, n_agents, n_tasks)
             self._optimize(dataset_train, self.model)
             model_reward = self._evaluation(
                 dataset_eval, self.model, self.baseline)
             if model_reward < best:
                 best = model_reward
-                torch.save(self.model.state_dict(), Path('models/transformer.pth'))
+                torch.save(self.model.state_dict(), Path('models') / (output_name+'.pth'))
             stop = timer()
             duration = stop - start
             durations.append(duration)
