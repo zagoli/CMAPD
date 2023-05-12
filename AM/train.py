@@ -46,6 +46,6 @@ trainer.train(
     train_size=params['training']['train_size'],
     eval_size=params['training']['eval_size'],
     n_epochs=params['training']['n_epochs'],
-    output_name='TEST',
-    log_prefix='TEST TRAINING'
+    output_name='deleteme',
+    log_prefix='deleteme'
 )

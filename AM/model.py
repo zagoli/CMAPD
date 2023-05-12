@@ -150,7 +150,7 @@ class Transformer(nn.Module):
         self.embedder_tasks = Embedder(input_size, d_model)
         self.encoder_tasks = Encoder(d_model, nhead, dim_feedforward, num_layers)
 
-        self.embedder_agents = Embedder(input_size[:2] + input_size, d_model)
+        self.embedder_agents = Embedder(input_size[:2], d_model)  #Embedder(input_size[:2] + input_size, d_model)  # INPUT SIZE DIFFERENT FOR ADDED PATHS
         self.encoder_agents = Encoder(d_model, nhead, dim_feedforward, num_layers)
 
         self.decoder = Decoder(d_model, nhead)
@@ -173,29 +173,36 @@ class Transformer(nn.Module):
         assignment_mask = _get_mask(tasks,
                                     assignment.indices)  # Masking indices of tasks already picked in the assignmemnt
         full_mask = (assignment.indices != -1).all(dim=-1,
-                                                   keepdim=True)  # Masking assignments which are already full (Because of max collective size)
+                                                   keepdim=True)  # Masking assignments which are already full (
+        # Because of max collective size)
         mask = (assignment_mask | padding_mask | full_mask).transpose(-1, -2)  # Combining the three masks
 
         h_t = self.embedder_tasks(tasks)  # Obtain hidden representation of the tasks with an embedding layer
         h_t = self.encoder_tasks(h_t,
-                                padding_mask)  # Obtain hidden representation of the tasks with an attention-based encoder
-
+                                 padding_mask)  # Obtain hidden representation of the tasks with an attention-based
+        # encoder
+        
         h_s = _get_hidden_state(h_t,
-                               assignment.indices)  # Obtain hidden representation of the assignment by combining the hidden representation of tasks in the current assignment
+                                assignment.indices)  # Obtain hidden representation of the assignment by combining
+        # the hidden representation of tasks in the current assignment
 
-        a_features = torch.cat((assignment.agents, assignment.paths), dim=2)
+        a_features = assignment.agents  #torch.cat((assignment.agents, assignment.paths), dim=2)
         h_a = self.embedder_agents(a_features)  # Obtain hidden representation of the agents with an embedding layer
         h_a = self.encoder_agents(h_a)  # Obtain hidden representation of the agents with an attention-based encoder
 
-        # hp = self.embedder_paths(assignment.paths)                             # Obtain hidden representation of the paths with an embedding layer (NOT IMPLEMENTED)
-        # hp = self.encoder_paths(hp)                                            # Obtain hidden representation of the paths with an attention-based encoder (NOT IMPLEMENTED)
+        # hp = self.embedder_paths(assignment.paths) # Obtain hidden representation of the paths with an embedding
+        # layer (NOT IMPLEMENTED)
+        # hp = self.encoder_paths(hp)                # Obtain hidden representation of the
+        # paths with an attention-based encoder (NOT IMPLEMENTED)
 
-        h_combined = h_s + h_a  # Combine assignment and paths hidden representation (NOT IMPLEMENTED)
+        h_combined = h_s + h_a  # Combine assignment and paths hidden representation
 
         probs = 8 * torch.tanh(self.decoder(h_combined, h_t,
-                                            mask))  # Scale the attention weights computed by the decoder with C * tanh(attention_weights) (C = 8 worked well in the past)
+                                            mask))  # Scale the attention weights computed by the decoder with C *
+        # tanh(attention_weights) (C = 8 worked well in the past)
         probs = F.softmax(probs.masked_fill(mask, float("-inf")), dim=-1)  # Normalize the probabilities with a softmax
         probs = probs.masked_fill(mask,
-                                  0)  # Assign probability 0 to the elements which cannot be selected indicated by the mask
+                                  0)  # Assign probability 0 to the elements which cannot be selected indicated by
+        # the mask
 
         return probs.transpose(-1, -2)

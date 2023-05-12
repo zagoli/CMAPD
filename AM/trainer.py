@@ -31,7 +31,7 @@ def logger_setup(log_prefix):
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
-    log_filename = f'{log_prefix}_{datetime.now().strftime("%d-%m-%Y_%H:%M:%S")}.log'
+    log_filename = f'models/{log_prefix}_{datetime.now().strftime("%d-%m-%Y_%H:%M:%S")}.log'
     file_handler = logging.FileHandler(log_filename)
     file_handler.setLevel(logging.INFO)
 
@@ -147,7 +147,7 @@ class Trainer:
             for bp, mp in zip(self.baseline.parameters(), self.model.parameters()):
                 bp.data.copy_(0.01 * mp.data + (1 - 0.01) * bp.data)
 
-    def train(self, n_agents, n_tasks, train_size, eval_size, n_epochs, output_name, log_prefix = ''):
+    def train(self, n_agents, n_tasks, train_size, eval_size, n_epochs, output_name, log_prefix=''):
         best = float("inf")
         durations = []
         check_output_dir()
@@ -157,8 +157,7 @@ class Trainer:
             start = timer()
             dataset_train = TADataset(train_size, n_agents, n_tasks)
             self._optimize(dataset_train, self.model)
-            model_reward = self._evaluation(
-                dataset_eval, self.model, self.baseline)
+            model_reward = self._evaluation(dataset_eval, self.model, self.baseline)
             if model_reward < best:
                 best = model_reward
                 torch.save(self.model.state_dict(), Path('models') / (output_name+'.pth'))
