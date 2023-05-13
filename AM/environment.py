@@ -5,13 +5,11 @@ import torch
 
 from function import parallel_pbs
 from parameters import params
-from regression.grid_solver import GridSolver
-from regression.utils import read_grid
+from regression.grid_solver import get_solver
 
 GRID = params['environment']['map']
 MAX_COLLECTIVE_SIZE = params['environment']['max_collective_size']
-grid_for_solver, _ = read_grid(GRID)
-grid_solver = GridSolver(grid_for_solver)
+grid_solver = get_solver(GRID)
 
 
 def waypoints_respect_capacity(new_waypoints, pickups):

@@ -3,14 +3,15 @@ from oracle.oracle import oracle
 from multiprocessing import Pool, cpu_count
 from regression.features_extractor import FeaturesExtractor
 from regression.utils import read_grid, format_grid_for_oracle
-from regression.grid_solver import GridSolver
+from regression.grid_solver import get_solver
 from xgboost import XGBRegressor
 from regression.utils import ravel
+from parameters import params
 
 # ---GLOBAL VARIABLES---
-grid, grid_size = read_grid('env/grid.map')
-grid_solver = GridSolver(grid)
+grid, grid_size = read_grid(params['environment']['map'])
 grid = format_grid_for_oracle(grid)
+grid_solver = get_solver(params['environment']['map'])
 #model = XGBRegressor()
 #model.load_model('model.ubj')
 # ----------------------

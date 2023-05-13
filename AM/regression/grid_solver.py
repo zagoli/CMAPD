@@ -1,5 +1,6 @@
 # Jacopo Zagoli, 03/02/2023
 from collections import deque
+from AM.regression.utils import read_grid
 
 
 class BfsNode:
@@ -90,3 +91,11 @@ class GridSolver:
         for i in range(len(waypoints) - 1):
             path += self.get_distance(waypoints[i], waypoints[i + 1])
         return path
+
+solvers = {}
+def get_solver(grid_name: str):
+    if grid_name in solvers:
+        return solvers[grid_name]
+    grid, _ = read_grid(grid_name)
+    solvers[grid_name] = GridSolver(grid)
+    return solvers[grid_name]
