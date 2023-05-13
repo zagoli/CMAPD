@@ -1,6 +1,5 @@
 # Jacopo Zagoli, 03/02/2023
 from collections import deque
-import copy
 
 
 class BfsNode:
@@ -11,10 +10,12 @@ class BfsNode:
 
 
 class GridSolver:
+
     def __init__(self, grid):
+        print('Solving grid...')
         self.__grid = grid != b'@'
-        self.__path_table = dict()
-        self.__compute_paths()
+        self.__distance_table = dict()
+        self.__compute_distance()
 
     def __is_present_bidirectional(self, from_point: tuple, to_point: tuple):
         forward = self.__is_present(from_point, to_point)
@@ -22,10 +23,10 @@ class GridSolver:
         return forward or reverse
 
     def __is_present(self, from_point, to_point):
-        forward = from_point in self.__path_table and to_point in self.__path_table[from_point]
+        forward = from_point in self.__distance_table and to_point in self.__distance_table[from_point]
         return forward
 
-    def __compute_paths(self):
+    def __compute_distance(self):
         n_rows, n_cols = self.__grid.shape
         for row in range(n_rows):
             for col in range(n_cols):
@@ -38,7 +39,7 @@ class GridSolver:
         explored = set()
         while frontier:
             vertex = frontier.popleft()
-            self.__update_path_table(root, vertex)
+            self.__update_distance_table(root, vertex)
             for neighbour in self.__vertex_neighbours(vertex):
                 neighbour_pos = (neighbour.row, neighbour.col)
                 if neighbour_pos not in explored:
@@ -60,32 +61,32 @@ class GridSolver:
         n_rows, n_cols = self.__grid.shape
         return 0 <= row < n_rows and 0 <= col < n_cols
 
-    def __update_path_table(self, root, vertex):
+    def __update_distance_table(self, root, vertex):
         from_point = (root.row, root.col)
         to_point = (vertex.row, vertex.col)
         if from_point != to_point and not self.__is_present_bidirectional(from_point, to_point):
             self.__init_dict(from_point)
-            self.__path_table[from_point][to_point] = vertex.cost
+            self.__distance_table[from_point][to_point] = vertex.cost
 
     def __init_dict(self, point):
-        if point not in self.__path_table:
-            self.__path_table[point] = dict()
+        if point not in self.__distance_table:
+            self.__distance_table[point] = dict()
 
-    def get_path(self, from_point: list, to_point: list) -> int:
+    def get_distance(self, from_point: list, to_point: list) -> int:
         if from_point == to_point:
             return 0
         from_point_index = (from_point[0], from_point[1])
         to_point_index = (to_point[0], to_point[1])
         if self.__is_present(from_point_index, to_point_index):
-            return self.__path_table[from_point_index][to_point_index]
+            return self.__distance_table[from_point_index][to_point_index]
         if self.__is_present(to_point_index, from_point_index):
-            return self.__path_table[to_point_index][from_point_index]
+            return self.__distance_table[to_point_index][from_point_index]
         raise Exception(f'No path is present from {from_point} to {to_point}')
 
-    def get_waypoints_path(self, waypoints: list):
+    def get_waypoints_distance(self, waypoints: list):
         if len(waypoints) == 1:
             return 0
         path = 0
         for i in range(len(waypoints) - 1):
-            path += self.get_path(waypoints[i], waypoints[i + 1])
+            path += self.get_distance(waypoints[i], waypoints[i + 1])
         return path

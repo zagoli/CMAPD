@@ -18,7 +18,7 @@ torch.cuda.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
 # Initialize CUDA if it is available
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = "cpu"  # temp solution
 
 def _sample_action(probs, deterministic=False):
@@ -38,21 +38,20 @@ def _rollout(tasks, collective, policy, stochastic=False):
         else:
             action, _ = _sample_action(probs, deterministic=True)
         collective = collective.add_participant(action)
-    reward = collective.get_reward()
-    return reward
+    return collective.get_reward()
 
 def _random_rollout(collective):
     n_tasks = 20
     n_agents = 10
-    task_indexes = list(range(n_tasks))
-    while not collective.is_terminal.all():
-        t_idx = random.choice(task_indexes)
-        task_indexes.remove(t_idx)
-        a_idx = random.randrange(0,n_agents)
+    agent_hits = {0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 ,8:0, 9:0}
+    for t_idx in range(n_tasks):
+        a_idx = random.randrange(0, n_agents)
+        while agent_hits[a_idx] >= params['environment']['max_collective_size']:
+            a_idx = random.randrange(0, n_agents)
+        agent_hits[a_idx] += 1
         action = (torch.tensor([a_idx]), torch.tensor([t_idx]))
         collective = collective.add_participant(action)
-    reward = collective.get_reward()
-    return reward
+    return collective.get_reward()
 
 
 if __name__ == '__main__':
@@ -71,9 +70,9 @@ if __name__ == '__main__':
             dx, dy = map(int, f.readline().strip().split(','))
             for _ in range(3): f.readline()
             typecell = {'.': [], 'e': [], 'r': [], '@': []}
-            for i, row in enumerate(f.readlines()):
+            for k, row in enumerate(f.readlines()):
                 for j, cell in enumerate(row.strip()):
-                    typecell[cell].append((i, j))
+                    typecell[cell].append((k, j))
             agents = torch.tensor([typecell['r']], device=device)
 
         with open(f'instances/tasks/{i}.task', 'r') as f:
@@ -88,4 +87,5 @@ if __name__ == '__main__':
 
         collective = Collective(agents, tasks)
         reward = _rollout(tasks, collective, model)
+        # reward = _random_rollout(collective)
         print(f"model result:{reward.item()}")

@@ -17,7 +17,7 @@ class FeaturesExtractor:
     def __compute_paths(self) -> list:
         paths = []
         for waypoints in self.__assignment:
-            path = self.__grid_solver.get_waypoints_path(waypoints)
+            path = self.__grid_solver.get_waypoints_distance(waypoints)
             paths.append(path)
         return paths
 

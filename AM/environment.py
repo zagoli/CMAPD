@@ -33,7 +33,7 @@ def insert_pickup(agent_waypoints, pickup, pickups_for_agent):
         new_waypoints = agent_waypoints[:i] + [pickup] + agent_waypoints[i:]
         # checks if the waypoints are consistent with capacity constraint
         if waypoints_respect_capacity(new_waypoints, pickups_for_agent):
-            waypoints_cost = grid_solver.get_waypoints_path(new_waypoints)
+            waypoints_cost = grid_solver.get_waypoints_distance(new_waypoints)
             if waypoints_cost < best_waypoints_cost:
                 best_waypoints = new_waypoints
                 best_waypoints_cost = waypoints_cost
@@ -46,7 +46,7 @@ def insert_delivery(agent_waypoints, delivery, pickup_index):
     best_waypoints, best_waypoints_cost = None, inf
     for i in range(pickup_index + 1, len(agent_waypoints) + 1):  # Search after the pickup
         new_waypoints = agent_waypoints[:i] + [delivery] + agent_waypoints[i:]
-        waypoints_cost = grid_solver.get_waypoints_path(new_waypoints)
+        waypoints_cost = grid_solver.get_waypoints_distance(new_waypoints)
         if waypoints_cost < best_waypoints_cost:
             best_waypoints = new_waypoints
             best_waypoints_cost = waypoints_cost
@@ -103,8 +103,11 @@ class Collective:
         """
 
         for batch_idx in range(self._batch_size):
-            new_waypoints = self.best_insertion(batch_idx, a_idx[batch_idx], t_idx[batch_idx])
-            collective.waypoints[batch_idx, a_idx[batch_idx]] = new_waypoints
+            agent = a_idx[batch_idx]
+            task = t_idx[batch_idx]
+            if not self.is_terminal[batch_idx]:
+                new_waypoints = self.best_insertion(batch_idx, agent, task)
+                collective.waypoints[batch_idx, agent] = new_waypoints
 
         """
         # insert pickup

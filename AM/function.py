@@ -51,7 +51,7 @@ def parallel_distance(waypoints: list[list[list[list[int]]]]):
 def distance(waypoint: list[list[list[int]]]):
     cost = 0
     for elem in waypoint:
-        cost += grid_solver.get_waypoints_path(elem)
+        cost += grid_solver.get_waypoints_distance(elem)
     return cost
 
 # def predict_costs(waypoints: list[list[list[list[int]]]]):
