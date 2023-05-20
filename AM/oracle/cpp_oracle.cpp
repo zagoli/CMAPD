@@ -21,6 +21,7 @@ float cpp_oracle_(vector<bool> map, vector<int> agents, vector<int> sep, int num
     PBS pbs(instance, true, 0);
 
     float cost = pbs.solve(60);
+    pbs.savePaths("./latest_pbs_instance_paths");
 	pbs.clearSearchEngines();
 
 	return cost;

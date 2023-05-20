@@ -27,7 +27,7 @@ for k in range(N_INSTANCES):
     for a in agents:
         grid[a[0]][a[1]] = 'r'
 
-    with open('./instances/maps/' + str(k) + '.map', 'w') as f:
+    with open('./instances_test/maps/' + str(k) + '.map', 'w') as f:
         f.write(','.join([str(len(grid)), str(len(grid[0]))]))
         f.write('\n' + str(n_endpoints))
         f.write('\n' + str(N_AGENTS))
@@ -39,7 +39,7 @@ for k in range(N_INSTANCES):
     for a in agents:
         grid[a[0]][a[1]] = 'e'
 
-    with open('./instances/tasks/' + str(k) + '.task', 'w') as f:
+    with open('./instances_test/tasks/' + str(k) + '.task', 'w') as f:
         f.write(str(N_TASKS))
 
         for t in tasks:

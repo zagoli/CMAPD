@@ -12,45 +12,6 @@ MAX_COLLECTIVE_SIZE = params['environment']['max_collective_size']
 grid_solver = get_solver(GRID)
 
 
-def waypoints_respect_capacity(new_waypoints, pickups):
-    cum_capacity = 0
-    for w in new_waypoints[1:]:  # exclude agent starting point
-        if w in pickups:
-            cum_capacity += 1
-        else:
-            cum_capacity -= 1
-        if cum_capacity > params['environment']['capacity']:
-            return False
-    return True
-
-
-def insert_pickup(agent_waypoints, pickup, pickups_for_agent):
-    # try to insert pickup in every possible position after the first (agent starting point)
-    best_waypoints, best_waypoints_cost, pickup_index = None, inf, 0
-    for i in range(1, len(agent_waypoints) + 1):
-        new_waypoints = agent_waypoints[:i] + [pickup] + agent_waypoints[i:]
-        # checks if the waypoints are consistent with capacity constraint
-        if waypoints_respect_capacity(new_waypoints, pickups_for_agent):
-            waypoints_cost = grid_solver.get_waypoints_distance(new_waypoints)
-            if waypoints_cost < best_waypoints_cost:
-                best_waypoints = new_waypoints
-                best_waypoints_cost = waypoints_cost
-                pickup_index = i
-    return best_waypoints, pickup_index
-
-
-def insert_delivery(agent_waypoints, delivery, pickup_index):
-    # try to insert pickup in every possible position after the pickup
-    best_waypoints, best_waypoints_cost = None, inf
-    for i in range(pickup_index + 1, len(agent_waypoints) + 1):  # Search after the pickup
-        new_waypoints = agent_waypoints[:i] + [delivery] + agent_waypoints[i:]
-        waypoints_cost = grid_solver.get_waypoints_distance(new_waypoints)
-        if waypoints_cost < best_waypoints_cost:
-            best_waypoints = new_waypoints
-            best_waypoints_cost = waypoints_cost
-    return best_waypoints
-
-
 class Collective:
     def __init__(self, agents, tasks, assignments=None, paths=None, waypoints=None):
         self._batch_size, self._num_agents, _ = agents.size()
@@ -71,6 +32,16 @@ class Collective:
             -torch.ones_like(agents).unsqueeze(2).repeat(1, 1, 2 * MAX_COLLECTIVE_SIZE, 1)
         ], dim=2) if waypoints is None else waypoints
         self.is_terminal = torch.zeros(self._batch_size, dtype=torch.bool, device=self._device)
+
+    def print_assignment(self):
+        assignment = self.indices.detach().clone().squeeze()
+        agents = self.agents.detach().clone().squeeze()
+        tasks = self.tasks.detach().clone().squeeze()
+        for a_idx in range(agents.size()[0]):
+            print('agent in position', agents[a_idx].tolist())
+            tasks_of_agent = [tasks[i] for i in assignment[a_idx] if i != -1]
+            for task in tasks_of_agent:
+                print("\t", task.tolist())
 
     def _get_paths(self, waypoints, a_idx):
         last_idx = (waypoints[range(self._batch_size), a_idx] != -1).all(dim=-1).sum(dim=-1)
@@ -104,7 +75,7 @@ class Collective:
             agent = a_idx[batch_idx]
             task = t_idx[batch_idx]
             if not self.is_terminal[batch_idx]:
-                new_waypoints = self.best_insertion(batch_idx, agent, task)
+                new_waypoints = self._best_insertion(batch_idx, agent, task)
                 collective.waypoints[batch_idx, agent] = new_waypoints
 
         """
@@ -131,7 +102,7 @@ class Collective:
     def get_reward(self):
         terminal_indexes = [index for index, terminal in enumerate(self.is_terminal) if terminal]
         waypoints = [self.waypoints[index] for index in terminal_indexes]
-        waypoints = waypoints_tensors_to_lists(waypoints)
+        waypoints = _waypoints_tensors_to_lists(waypoints)
         costs = parallel_pbs(waypoints)
         reward = torch.zeros(self._batch_size, dtype=torch.float, device=self._device)
         for i, cost in enumerate(costs):
@@ -139,7 +110,7 @@ class Collective:
             reward[index] = cost
         return reward
 
-    def best_insertion(self, batch_idx, a_idx, t_idx):
+    def _best_insertion(self, batch_idx, a_idx, t_idx):
         # list of dimension (max path size, x y coordinates) for a specific agent
         agent_waypoints = self.waypoints[batch_idx, a_idx].detach().clone().squeeze().tolist()
         agent_waypoints = list(filter(lambda pos: pos != [-1, -1], agent_waypoints))
@@ -152,16 +123,15 @@ class Collective:
             delivery = task[2:4].tolist()
             # get list of all pickup points for the agent
             tasks_idxes_for_agent = self.indices[batch_idx, a_idx].detach().clone().squeeze().tolist()
-            pickups_for_agent = self.pickup_locations_for_agent(batch_idx, tasks_idxes_for_agent) + [pickup]
+            pickups_for_agent = self._pickup_locations_for_agent(batch_idx, tasks_idxes_for_agent) + [pickup]
             # insert pickup and delivery
-            agent_waypoints, pickup_index = insert_pickup(agent_waypoints, pickup, pickups_for_agent)
-            agent_waypoints = insert_delivery(agent_waypoints, delivery, pickup_index)
+            agent_waypoints, pickup_index = _insert_pickup(agent_waypoints, pickup, pickups_for_agent)
+            agent_waypoints = _insert_delivery(agent_waypoints, delivery, pickup_index)
             result_tensor = torch.full((2 * MAX_COLLECTIVE_SIZE + 1, 2), -1)
             result_tensor[:len(agent_waypoints)] = torch.tensor(agent_waypoints)
             return result_tensor
 
-
-    def pickup_locations_for_agent(self, batch_idx, tasks_idxes_for_agent):
+    def _pickup_locations_for_agent(self, batch_idx, tasks_idxes_for_agent):
         pickups = []
         for t_idx in tasks_idxes_for_agent:
             if t_idx != -1:
@@ -170,7 +140,7 @@ class Collective:
         return pickups
 
 
-def waypoints_tensors_to_lists(waypoints):
+def _waypoints_tensors_to_lists(waypoints):
     # from list of tensor to list of lists of points (list of int, int)
     result = []
     for w in waypoints:
@@ -178,6 +148,45 @@ def waypoints_tensors_to_lists(waypoints):
         w = [[[int_value.item() for int_value in tensor] for tensor in sublist] for sublist in w]  # ChatGPT
         result.append(w)
     return result
+
+
+def _waypoints_respect_capacity(new_waypoints, pickups):
+    cum_capacity = 0
+    for w in new_waypoints[1:]:  # exclude agent starting point
+        if w in pickups:
+            cum_capacity += 1
+        else:
+            cum_capacity -= 1
+        if cum_capacity > params['environment']['capacity']:
+            return False
+    return True
+
+
+def _insert_pickup(agent_waypoints, pickup, pickups_for_agent):
+    # try to insert pickup in every possible position after the first (agent starting point)
+    best_waypoints, best_waypoints_cost, pickup_index = None, inf, 0
+    for i in range(1, len(agent_waypoints) + 1):
+        new_waypoints = agent_waypoints[:i] + [pickup] + agent_waypoints[i:]
+        # checks if the waypoints are consistent with capacity constraint
+        if _waypoints_respect_capacity(new_waypoints, pickups_for_agent):
+            waypoints_cost = grid_solver.get_waypoints_distance(new_waypoints)
+            if waypoints_cost < best_waypoints_cost:
+                best_waypoints = new_waypoints
+                best_waypoints_cost = waypoints_cost
+                pickup_index = i
+    return best_waypoints, pickup_index
+
+
+def _insert_delivery(agent_waypoints, delivery, pickup_index):
+    # try to insert pickup in every possible position after the pickup
+    best_waypoints, best_waypoints_cost = None, inf
+    for i in range(pickup_index + 1, len(agent_waypoints) + 1):  # Search after the pickup
+        new_waypoints = agent_waypoints[:i] + [delivery] + agent_waypoints[i:]
+        waypoints_cost = grid_solver.get_waypoints_distance(new_waypoints)
+        if waypoints_cost < best_waypoints_cost:
+            best_waypoints = new_waypoints
+            best_waypoints_cost = waypoints_cost
+    return best_waypoints
 
 
 with open(GRID, 'r') as f:

@@ -17,9 +17,9 @@ params = {
     'training': {
         'n_agents': 10,                 # Number of agents in the training instances
         'n_tasks': [20, 25],            # Range of tasks in the training instances
-        'batch_size': 1024,    #4096          # Batch size to train the model
-        'train_size': 40960,          # Number of training instances (ideal would be > 100k)
-        'eval_size': 10240,             # Number of test instances (ideal would be > 10k)
+        'batch_size': 8,#1024,    #4096          # Batch size to train the model
+        'train_size': 15,#40960,          # Number of training instances (ideal would be > 100k)
+        'eval_size': 2,#10240,             # Number of test instances (ideal would be > 10k)
         'learning_rate': 1e-4,          # Learning rate in gradient descent
         'n_epochs': 50                 # Number of training epochs
     }
