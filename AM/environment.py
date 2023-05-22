@@ -38,10 +38,13 @@ class Collective:
         agents = self.agents.detach().clone().squeeze()
         tasks = self.tasks.detach().clone().squeeze()
         for a_idx in range(agents.size()[0]):
-            print('agent in position', agents[a_idx].tolist())
+            print('§A', tuple(agents[a_idx].tolist()))
             tasks_of_agent = [tasks[i] for i in assignment[a_idx] if i != -1]
+            to_print = []
             for task in tasks_of_agent:
-                print("\t", task.tolist())
+                to_print.append(tuple(task.tolist()[:2]))
+                to_print.append(tuple(task.tolist()[2:4]))
+            print('§T', to_print)
 
     def _get_paths(self, waypoints, a_idx):
         last_idx = (waypoints[range(self._batch_size), a_idx] != -1).all(dim=-1).sum(dim=-1)
